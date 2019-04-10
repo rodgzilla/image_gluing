@@ -49,11 +49,12 @@ def load_target_image(target_filename):
 
     return targ_img
 
-def compute_mean_rgb_CIFAR(imgs_by_cat, cat = None):
+def compute_mean_rgb_CIFAR(imgs_by_cat, block_size, cat = None):
     if cat:
         cifar_imgs = imgs_by_cat[cat]
     else:
         cifar_imgs = [img for cat_imgs in imgs_by_cat.values() for img in cat_imgs]
+    cifar_imgs     = [img.resize((block_size, block_size)) for img in cifar_imgs]
     cifar_imgs     = np.stack([np.array(img) for img in cifar_imgs])
     cifar_mean_rgb = cifar_imgs.reshape(
         len(cifar_imgs),
@@ -86,7 +87,7 @@ def main(target_filename, block_size = 32):
         -1,
         3
     ).mean(axis = -2)
-    cifar_imgs, cifar_mean_rgb = compute_mean_rgb_CIFAR(imgs_by_cat)
+    cifar_imgs, cifar_mean_rgb = compute_mean_rgb_CIFAR(imgs_by_cat, block_size)
     pairwise_euc_dist          = compute_pairwise_block_database_img_dist(
         big_img_block_rgb,
         cifar_mean_rgb
@@ -100,4 +101,4 @@ def main(target_filename, block_size = 32):
 
 if __name__ == '__main__':
     target_filename = sys.argv[1]
-    main(target_filename)
+    main(target_filename, 16)
