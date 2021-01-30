@@ -1,12 +1,16 @@
 import pdb
-import numpy as np
-import matplotlib.pyplot as plt
-import PIL
+from pathlib import Path
+import numpy as np # type: ignore
+import matplotlib.pyplot as plt # type: ignore
+import PIL # type: ignore
+
+from sklearn.metrics import pairwise_distances # type: ignore
 
 import torch
-import torchvision.models.vgg as models
-import torchvision.transforms as transforms
-from torch.utils.data import TensorDataset, DataLoader
+import torch.nn as nn
+import torchvision.models.vgg as models # type: ignore
+import torchvision.transforms as transforms # type: ignore
+from torch.utils.data import TensorDataset, DataLoader, Dataset
 
 normalize = transforms.Normalize(
     mean = [0.485, 0.456, 0.406],
@@ -17,7 +21,22 @@ normalize = transforms.Normalize(
 device    = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 vgg16     = models.vgg16(pretrained = True).to(device)
 
-def run_model_inference(model, image_dataset, batch_size):
+def load_images(root: Path) -> np.ndarray:
+    img_arrays = []
+    for fn in root.iterdir():
+        img_arrays.append(
+            PIL.Image.open(
+                fn
+            ).resize((256, 256))
+        )
+
+    return np.stack(img_arrays) / 255
+
+def run_model_inference(
+    model: nn.Module,
+    image_dataset: Dataset,
+    batch_size: int
+) -> torch.Tensor:
     image_loader = DataLoader(
         dataset    = image_dataset,
         batch_size = batch_size,
@@ -30,12 +49,14 @@ def run_model_inference(model, image_dataset, batch_size):
         vgg_repr  = model(img_batch)
         vgg_repr  = vgg_repr.detach().cpu()
         result.append(vgg_repr)
-    result = torch.cat(result, dim = 0)
-    result = result.view(len(result), -1)
+    result_tensor = torch.cat(result, dim = 0)
+    result_tensor = result_tensor.view(len(result_tensor), -1)
 
-    return result
+    return result_tensor
 
-def extract_features(images, layer_idx, batch_size):
+def extract_features(images: np.ndarray, layer_idx: int,
+                     batch_size: int
+) -> torch.Tensor:
     images        = images.transpose((0, 3, 1, 2))
     images_tensor = torch.tensor(images, dtype = torch.float32)
     # This is obviously wrong but I haven't found how to do it
@@ -51,16 +72,10 @@ def extract_features(images, layer_idx, batch_size):
     return reprs
 
 if __name__ == '__main__':
-    img_1 = np.array(
-        PIL.Image.open(
-            '../../data/raw/cat.jpg'
-        ).resize((256, 256)).rotate(-90)
-    )
-    img_2 = np.array(
-        PIL.Image.open(
-            '../../data/raw/cat_snow.jpg'
-        ).resize((256, 256))
-    )
-    images = np.stack((img_1, img_2))
-    images = images / 255.
-    extract_features(images, 7, 1)
+    root = Path('data/raw')
+    imgs = load_images(root)
+    result = extract_features(imgs, 7, 2)
+    distances = pairwise_distances(result)
+    print(distances)
+    pdb.set_trace()
+    print(5)
