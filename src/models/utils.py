@@ -1,4 +1,6 @@
-def slice_image(img, block_size):
+import numpy as np # type: ignore
+
+def slice_image(img: np.ndarray, block_size: int) -> np.ndarray:
     '''
     This function takes an image as input (a numpy array of shape
     [height, width, 3]) and slice it into blocks of
@@ -17,7 +19,7 @@ def slice_image(img, block_size):
 
     return grid
 
-def glue_image(imgs_to_glue):
+def glue_image(imgs_to_glue: np.ndarray) -> np.ndarray:
     '''
     This function is the inverse of slice image, it glues many images
     together to form a big one. The input if of shape
