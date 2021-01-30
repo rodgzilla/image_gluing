@@ -1,17 +1,17 @@
 import sys
-import PIL
-import numpy as np
-import matplotlib.pyplot as plt
+import PIL # type: ignore
+import numpy as np # type: ignore
+import matplotlib.pyplot as plt # type: ignore
 from collections import defaultdict
 
-from sklearn.metrics import pairwise_distances
+from sklearn.metrics import pairwise_distances # type: ignore
 
-import torchvision.datasets as datasets
+import torchvision.datasets as datasets # type: ignore
 
-from utils import slice_image, glue_image
+from utils import slice_image, glue_image # type: ignore
 
 def load_CIFAR10(data_folder = '../../data'):
-    cifar_train = datasets.CIFAR10(
+    cifar_train: dataset.CIFAR10 = datasets.CIFAR10(
         root      = data_folder,
         train     = True,
         download  = True,
