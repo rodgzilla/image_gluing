@@ -8,6 +8,7 @@ import numpy as np # type: ignore
 import matplotlib.pyplot as plt # type: ignore
 import torch
 from sklearn.metrics import pairwise_distances # type: ignore
+from tqdm import tqdm
 
 from utils import slice_image, glue_images, load_target_img, load_cifar_imgs # type: ignore
 from perceptual_repr import extract_features # type: ignore
@@ -15,8 +16,8 @@ from perceptual_repr import extract_features # type: ignore
 def generate_random_individuals(
     block_array_size: Tuple[int, int, int],
     img_database_size: int
-) -> torch.Tensor:
-    return torch.randint(
+) -> np.ndarray:
+    return np.random.randint(
         low = 0,
         high = img_database_size,
         size = block_array_size
@@ -39,9 +40,23 @@ def score_individuals(
 
     return scores[0]
 
+def reproductions(
+        population: np.ndarray,
+        first_parent_indices: np.ndarray,
+        second_parent_indices: np.ndarray
+) -> np.ndarray:
+    first_parents = population[first_parent_indices]
+    second_parents = population[second_parent_indices]
+    mask = np.random.random(first_parents.shape) > .5
+
+    return mask * first_parents + (1 - mask) * second_parents
+
 def run_generation(
     pop_size: int,
     n_gen: int,
+    n_mutation: int,
+    n_reprod: int,
+    n_select: int,
     block_size:int,
     target_img: np.ndarray,
     img_database: np.ndarray,
@@ -70,10 +85,27 @@ def run_generation(
         target_img_repr = target_img_repr,
         batch_size = batch_size
     )
-    pdb.set_trace()
     sorted_indices = np.argsort(population_scores)
     population_scores = population_scores[sorted_indices]
     population = population[sorted_indices]
+
+    for generation_id in tqdm(range(n_gen)):
+        reprod_parent_1 = np.random.randint(
+            low = 0,
+            high = n_select,
+            size = (n_reprod, )
+        )
+        reprod_parent_2 = np.random.randint(
+            low = 0,
+            high = len(population),
+            size = (n_reprod, )
+        )
+        reprod_children = reproductions(
+            population,
+            reprod_parent_1,
+            reprod_parent_2
+        )
+
 
 @click.command()
 @click.argument('target_img_fn', type = click.Path(exists = True))
@@ -89,7 +121,17 @@ def main(target_img_fn: str, target_img_height: int,
         target_img_width
     )
     img_database = load_cifar_imgs('data')
-    run_generation(10, 3, 32, target_img, img_database, 1)
+    run_generation(
+        pop_size = 30,
+        n_mutation = 10,
+        n_gen = 3,
+        n_reprod = 10,
+        n_select = 5,
+        block_size = 32,
+        target_img = target_img,
+        img_database = img_database,
+        batch_size = 1
+    )
     # big_img_slices = slice_image(target_img, block_size = 32)
     # small_imgs = load_cifar_imgs('data')
     # target_img_repr = extract_features(
