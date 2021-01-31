@@ -56,7 +56,7 @@ def run_model_inference(
 
 def extract_features(images: np.ndarray, layer_idx: int,
                      batch_size: int
-) -> torch.Tensor:
+) -> np.ndarray:
     images        = images.transpose((0, 3, 1, 2))
     images_tensor = torch.tensor(images, dtype = torch.float32)
     # This is obviously wrong but I haven't found how to do it
