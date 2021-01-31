@@ -3,6 +3,7 @@ from pathlib import Path
 import numpy as np # type: ignore
 import matplotlib.pyplot as plt # type: ignore
 import PIL # type: ignore
+from tqdm import tqdm
 
 from sklearn.metrics import pairwise_distances # type: ignore
 
@@ -44,7 +45,11 @@ def run_model_inference(
     )
 
     result = []
-    for img_batch, in image_loader:
+    for img_batch, in tqdm(
+        image_loader,
+        desc = 'Inference',
+        total = len(image_loader)
+    ):
         img_batch = img_batch.to(device)
         vgg_repr  = model(img_batch)
         vgg_repr  = vgg_repr.detach().cpu()
