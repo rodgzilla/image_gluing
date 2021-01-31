@@ -66,7 +66,7 @@ def extract_features(images: np.ndarray, layer_idx: int,
 
     image_dataset = TensorDataset(images_tensor)
     model         = vgg16.features[:layer_idx]
-    reprs         = run_model_inference(model, image_dataset, 1)
+    reprs         = run_model_inference(model, image_dataset, batch_size)
     reprs         = reprs.numpy()
 
     return reprs
