@@ -1,4 +1,5 @@
 import pdb
+import logging
 from pathlib import Path
 import PIL # type: ignore
 import click
@@ -12,6 +13,10 @@ from tqdm import tqdm
 
 from utils import slice_image, glue_images, load_target_img, load_cifar_imgs # type: ignore
 from perceptual_repr import extract_features # type: ignore
+
+log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+logging.basicConfig(level=logging.INFO, format=log_fmt)
+logger = logging.getLogger('Image gluing genetic algorithm')
 
 def generate_random_individuals(
     block_array_size: Tuple[int, int, int],
@@ -41,15 +46,34 @@ def score_individuals(
     return scores[0]
 
 def reproductions(
-        population: np.ndarray,
-        first_parent_indices: np.ndarray,
-        second_parent_indices: np.ndarray
+    population: np.ndarray,
+    first_parent_indices: np.ndarray,
+    second_parent_indices: np.ndarray
 ) -> np.ndarray:
     first_parents = population[first_parent_indices]
     second_parents = population[second_parent_indices]
     mask = np.random.random(first_parents.shape) > .5
 
     return mask * first_parents + (1 - mask) * second_parents
+
+def mutation(
+    population: np.ndarray,
+    img_database_size: int,
+    n_mutation: int,
+    proba: float
+) -> np.ndarray:
+    individuals_to_mutate = population[
+        np.random.permutation(len(population))[:n_mutation]
+    ].copy()
+    mutation_mask = np.random.random(individuals_to_mutate.shape) < proba
+    img_to_mutate = individuals_to_mutate[mutation_mask]
+    img_to_mutate = np.random.randint(
+        low = 0,
+        high = img_database_size,
+        size = len(img_to_mutate)
+    )
+
+    return individuals_to_mutate
 
 def run_generation(
     pop_size: int,
@@ -90,6 +114,9 @@ def run_generation(
     population = population[sorted_indices]
 
     for generation_id in tqdm(range(n_gen)):
+        logger.info(f'Start of generation {generation_id}')
+        logger.info(f'Top scores {population_scores[:5]}')
+        logger.info(f'Performing reproductions')
         reprod_parent_1 = np.random.randint(
             low = 0,
             high = n_select,
@@ -106,6 +133,33 @@ def run_generation(
             reprod_parent_2
         )
 
+        intermediate_population = np.concatenate((
+            population,
+            reprod_children
+        ))
+        logger.info(f'Performing mutations')
+        mutated_population = mutation(
+            population = intermediate_population,
+            img_database_size = len(img_database),
+            n_mutation = 5,
+            proba = .1
+        )
+
+        logger.info(f'Scoring population')
+        new_population = np.concatenate((
+            intermediate_population,
+            mutated_population
+        ))
+        new_population_scores = score_individuals(
+            individuals = new_population,
+            img_database = img_database,
+            target_img_repr = target_img_repr,
+            batch_size = batch_size
+        )
+        sorted_indices = np.argsort(new_population_scores)
+        population_scores = new_population_scores[sorted_indices]
+        new_population = new_population[sorted_indices]
+        population = new_population[:pop_size]
 
 @click.command()
 @click.argument('target_img_fn', type = click.Path(exists = True))
@@ -115,12 +169,19 @@ def main(target_img_fn: str, target_img_height: int,
          target_img_width: int
 ) -> None:
     target_img_path = Path(target_img_fn)
+    logger.info(f'Target image path: {target_img_path}')
+    logger.info(f'Target image height: {target_img_height}')
+    logger.info(f'Target image width: {target_img_width}')
+
     target_img = load_target_img(
         target_img_path,
         target_img_height,
         target_img_width
     )
+
     img_database = load_cifar_imgs('data')
+    logger.info(f'Image database shape: {img_database.shape}')
+
     run_generation(
         pop_size = 30,
         n_mutation = 10,
@@ -132,28 +193,6 @@ def main(target_img_fn: str, target_img_height: int,
         img_database = img_database,
         batch_size = 1
     )
-    # big_img_slices = slice_image(target_img, block_size = 32)
-    # small_imgs = load_cifar_imgs('data')
-    # target_img_repr = extract_features(
-    #     images = target_img[None, ...],
-    #     layer_idx = 7,
-    #     batch_size = 1
-    # )
-    # individuals = generate_random_individuals(
-    #     block_array_size = (
-    #         5,
-    #         big_img_slices.shape[0],
-    #         big_img_slices.shape[1],
-    #     ),
-    #     img_database_size = len(small_imgs)
-    # )
-    # scores = score_individuals(
-    #     individuals = individuals,
-    #     img_database = small_imgs,
-    #     target_img_repr = target_img_repr
-    # )
-
-    # print(scores)
 
 if __name__ == '__main__':
     main()
