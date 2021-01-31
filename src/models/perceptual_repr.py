@@ -13,14 +13,18 @@ import torchvision.models.vgg as models # type: ignore
 import torchvision.transforms as transforms # type: ignore
 from torch.utils.data import TensorDataset, DataLoader, Dataset # type: ignore
 
-normalize = transforms.Normalize(
-    mean = [0.485, 0.456, 0.406],
-    std  = [0.229, 0.224, 0.225]
-)
+normalize = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize(
+        mean = [0.485, 0.456, 0.406],
+        std  = [0.229, 0.224, 0.225]
+    )
+])
 # This way of dealing with devices is not flexible, we should
 # change it.
 device    = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 vgg16     = models.vgg16(pretrained = True).to(device)
+vgg16.eval()
 
 def load_images(root: Path) -> np.ndarray:
     img_arrays = []
@@ -31,7 +35,7 @@ def load_images(root: Path) -> np.ndarray:
             ).resize((256, 256))
         )
 
-    return np.stack(img_arrays) / 255
+    return np.stack(img_arrays)
 
 def run_model_inference(
     model: nn.Module,
@@ -62,12 +66,21 @@ def run_model_inference(
 def extract_features(images: np.ndarray, layer_idx: int,
                      batch_size: int
 ) -> np.ndarray:
-    images        = images.transpose((0, 3, 1, 2))
-    images_tensor = torch.tensor(images, dtype = torch.float32)
-    # This is obviously wrong but I haven't found how to do it
-    # properly
-    for i, img in enumerate(images_tensor):
-        images_tensor[i] = normalize(img)
+    # img = images[0]
+    # norm_img = normalize(img)
+    # img_batch = norm_img.unsqueeze(0).float().to(device)
+    # result = vgg16(img_batch)
+
+    # images_tensor = torch.tensor(images, dtype = torch.float32)
+    # # This is obviously wrong but I haven't found how to do it
+    # # properly
+    # for i, img in enumerate(images_tensor):
+    #     images_tensor[i] = normalize(img)
+
+    images_tensor = torch.stack([
+        normalize(img).float()
+        for img in images
+    ])
 
     image_dataset = TensorDataset(images_tensor)
     model         = vgg16.features[:layer_idx]
