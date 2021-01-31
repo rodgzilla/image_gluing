@@ -41,11 +41,6 @@ def save_individuals(
         pil_img = PIL.Image.fromarray(img)
         img_fn = output_folder / f'gen_{generation_idx:04d}_img_{img_idx}_score_{score}.png'
         pil_img.save(img_fn)
-    # plt.imshow(glued_imgs[0])
-    # plt.show()
-    # pdb.set_trace()
-
-    # print(5)
 
 def score_individuals(
     individuals: np.ndarray,
@@ -188,13 +183,8 @@ def run_generation(
             generation_idx,
             output_folder
         )
-#         def save_individuals(
-#     individuals: np.ndarray,
-#     scores: np.ndarray,
-#     img_database: np.ndarray,
-#     generation_idx: int,
-#     output_folder: Path
-# ):
+        # logger.info(f'Population shape: {population.shape}')
+        # logger.info(f'Population scores shape: {population_scores.shape}')
 
 
 @click.command()
