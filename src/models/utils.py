@@ -67,20 +67,3 @@ def glue_images(imgs_to_glue: np.ndarray) -> np.ndarray:
     )
 
     return glued_img
-
-# def glue_image(imgs_to_glue: np.ndarray) -> np.ndarray:
-#     '''
-#     This function is the inverse of slice image, it glues many images
-#     together to form a big one. The input if of shape
-#     `[n_block_x, n_block_y, n_pixel_block_x, n_pixel_block_y, rgb]`
-#     and the output is of shape
-#     `[n_block_x * n_pixel_block_x, n_block_y * n_pixel_block_y, rgb]
-#     '''
-#     glued_img = imgs_to_glue.transpose((0, 2, 1, 3, 4))
-#     glued_img = glued_img.reshape(
-#         glued_img.shape[0] * glued_img.shape[1],
-#         glued_img.shape[2] * glued_img.shape[3],
-#         3
-#     )
-
-#     return glued_img
