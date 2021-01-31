@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np # type: ignore
 import matplotlib.pyplot as plt # type: ignore
 import PIL # type: ignore
-from tqdm import tqdm
+from tqdm import tqdm # type: ignore
 
 from sklearn.metrics import pairwise_distances # type: ignore
 
