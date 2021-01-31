@@ -6,11 +6,11 @@ import PIL # type: ignore
 
 from sklearn.metrics import pairwise_distances # type: ignore
 
-import torch
-import torch.nn as nn
+import torch # type: ignore
+import torch.nn as nn # type: ignore
 import torchvision.models.vgg as models # type: ignore
 import torchvision.transforms as transforms # type: ignore
-from torch.utils.data import TensorDataset, DataLoader, Dataset
+from torch.utils.data import TensorDataset, DataLoader, Dataset # type: ignore
 
 normalize = transforms.Normalize(
     mean = [0.485, 0.456, 0.406],
