@@ -22,15 +22,22 @@ def generate_random_individuals(
         size = block_array_size
     )
 
-def score_individual(
-    individual: torch.Tensor,
+def score_individuals(
+    individuals: torch.Tensor,
     img_database: torch.Tensor,
     target_img_repr = torch.Tensor
-) -> float:
-    imgs_to_glue = img_database[individual]
-    glued_imgs = glue_image(imgs_to_glue)
+) -> np.ndarray:
+    imgs_to_glue = img_database[individuals]
+    glued_imgs = glue_images(imgs_to_glue)
+    glued_imgs_repr = extract_features(
+        images = glued_imgs,
+        layer_idx = 7,
+        batch_size = 1
+    )
+    scores = pairwise_distances(target_img_repr, glued_imgs_repr)
 
-    return 5.
+    return scores
+
 
 @click.command()
 @click.argument('target_img_fn', type = click.Path(exists = True))
@@ -47,7 +54,12 @@ def main(target_img_fn: str, target_img_height: int,
     )
     big_img_slices = slice_image(target_img, block_size = 32)
     small_imgs = load_cifar_imgs('data')
-    individual = generate_random_individuals(
+    target_img_repr = extract_features(
+        images = target_img[None, ...],
+        layer_idx = 7,
+        batch_size = 1
+    )
+    individuals = generate_random_individuals(
         block_array_size = (
             5,
             big_img_slices.shape[0],
@@ -55,25 +67,13 @@ def main(target_img_fn: str, target_img_height: int,
         ),
         img_database_size = len(small_imgs)
     )
-    imgs_to_glue = small_imgs[individual]
-    target_img_repr = extract_features(
-        images = target_img[None, ...],
-        layer_idx = 7,
-        batch_size = 1
+    scores = score_individuals(
+        individuals = individuals,
+        img_database = small_imgs,
+        target_img_repr = target_img_repr
     )
-    result_imgs = glue_images(imgs_to_glue)
-    result_img_reprs = extract_features(
-        images = result_imgs,
-        layer_idx = 7,
-        batch_size = 1
-    )
-    distances = pairwise_distances(target_img_repr, result_img_reprs)
-    pdb.set_trace()
-    print(5)
-    # fig, ax = plt.subplots(1, 2)
-    # ax[0].imshow(target_img)
-    # ax[1].imshow(result_img)
-    # plt.show()
+
+    print(scores)
 
 if __name__ == '__main__':
     main()
