@@ -1,4 +1,34 @@
+from pathlib import Path
+
+import PIL # type: ignore
 import numpy as np # type: ignore
+import torchvision.datasets as datasets # type: ignore
+
+def load_target_img(img_path: Path, img_height: int,
+                    img_width: int
+) -> np.ndarray:
+    return np.array(PIL.Image.open(img_path).resize(
+        (img_width, img_height)
+    )) / 256
+
+def load_cifar_imgs(data_folder: Path) -> np.ndarray:
+    cifar_train = datasets.CIFAR10(
+        root      = data_folder,
+        train     = True,
+        download  = True,
+        transform = None
+    )
+    cifar_test = datasets.CIFAR10(
+        root      = data_folder,
+        train     = False,
+        download  = True,
+        transform = None
+    )
+    imgs = np.stack([
+        img for img, _ in cifar_train + cifar_test
+    ])
+
+    return imgs
 
 def slice_image(img: np.ndarray, block_size: int) -> np.ndarray:
     '''
