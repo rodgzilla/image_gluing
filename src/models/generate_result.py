@@ -4,12 +4,13 @@ from pathlib import Path
 import PIL # type: ignore
 import click
 from typing import Tuple
+from guppy import hpy # type: ignore
 
 import numpy as np # type: ignore
 import matplotlib.pyplot as plt # type: ignore
 import torch
 from sklearn.metrics import pairwise_distances # type: ignore
-from tqdm import tqdm
+from tqdm import tqdm # type: ignore
 
 from utils import slice_image, glue_images, load_target_img, load_cifar_imgs # type: ignore
 from perceptual_repr import extract_features # type: ignore
@@ -34,7 +35,7 @@ def save_individuals(
     img_database: np.ndarray,
     generation_idx: int,
     output_folder: Path
-):
+) -> None:
     imgs_to_glue = img_database[individuals]
     glued_imgs = glue_images(imgs_to_glue)
     for img_idx, (img, score) in enumerate(zip(glued_imgs, scores)):
@@ -45,7 +46,7 @@ def save_individuals(
 def score_individuals(
     individuals: np.ndarray,
     img_database: np.ndarray,
-    target_img_repr: torch.Tensor,
+    target_img_repr: np.ndarray,
     batch_size: int
 ) -> np.ndarray:
     imgs_to_glue = img_database[individuals]
@@ -58,6 +59,24 @@ def score_individuals(
     scores = pairwise_distances(target_img_repr, glued_imgs_repr)
 
     return scores[0]
+
+def score_and_sort_population(
+    population: np.ndarray,
+    img_database: np.ndarray,
+    target_img_repr: np.ndarray,
+    batch_size: int
+) -> Tuple[np.ndarray, np.ndarray]:
+    population_scores = score_individuals(
+        individuals = population,
+        img_database = img_database,
+        target_img_repr = target_img_repr,
+        batch_size = batch_size
+    )
+    sorted_indices = np.argsort(population_scores)
+    population_scores = population_scores[sorted_indices]
+    population = population[sorted_indices]
+
+    return population, population_scores
 
 def reproductions(
     population: np.ndarray,
@@ -89,12 +108,19 @@ def mutation(
 
     return individuals_to_mutate
 
+def remove_duplicate_individuals(population: np.ndarray) -> np.ndarray:
+    population = np.unique(population, axis = 0)
+
+    return population
+
 def run_generation(
     pop_size: int,
     n_gen: int,
     n_mutation: int,
+    mutation_proba: float,
     n_reprod: int,
     n_select: int,
+    n_new_ind: int,
     block_size:int,
     target_img: np.ndarray,
     img_database: np.ndarray,
@@ -118,19 +144,17 @@ def run_generation(
         ),
         img_database_size = len(img_database)
     )
-    population_scores = score_individuals(
-        individuals = population,
+    population, population_scores = score_and_sort_population(
+        population = population,
         img_database = img_database,
         target_img_repr = target_img_repr,
         batch_size = batch_size
     )
-    sorted_indices = np.argsort(population_scores)
-    population_scores = population_scores[sorted_indices]
-    population = population[sorted_indices]
-
     for generation_idx in tqdm(range(n_gen)):
+        # h = hpy()
+        # print(h.heap())
         logger.info(f'Start of generation {generation_idx}')
-        logger.info(f'Top scores {population_scores[:5]}')
+        logger.info(f'\nTop scores {population_scores[:5]}')
         logger.info(f'Performing reproductions')
         reprod_parent_1 = np.random.randint(
             low = 0,
@@ -156,35 +180,67 @@ def run_generation(
         mutated_population = mutation(
             population = intermediate_population,
             img_database_size = len(img_database),
-            n_mutation = 5,
-            proba = .1
+            n_mutation = n_mutation,
+            proba = mutation_proba
+        )
+
+        logger.info('Generating random individuals')
+        new_individuals = generate_random_individuals(
+            block_array_size = (
+                n_new_ind,
+                target_img_slices.shape[0],
+                target_img_slices.shape[1]
+            ),
+            img_database_size = len(img_database)
         )
 
         logger.info(f'Scoring population')
         new_population = np.concatenate((
             intermediate_population,
-            mutated_population
+            mutated_population,
+            new_individuals
         ))
-        new_population_scores = score_individuals(
-            individuals = new_population,
+        new_population, new_population_scores = score_and_sort_population(
+            population = new_population,
             img_database = img_database,
             target_img_repr = target_img_repr,
             batch_size = batch_size
         )
-        sorted_indices = np.argsort(new_population_scores)
-        population_scores = new_population_scores[sorted_indices]
-        new_population = new_population[sorted_indices]
         population = new_population[:pop_size]
         population_scores = population_scores[:pop_size]
-        save_individuals(
-            population[:3],
-            population_scores[:3],
-            img_database,
-            generation_idx,
-            output_folder
-        )
-        # logger.info(f'Population shape: {population.shape}')
-        # logger.info(f'Population scores shape: {population_scores.shape}')
+
+        # Duplication removal
+        population = remove_duplicate_individuals(population)
+        if len(population) < pop_size:
+            logger.info(f'{pop_size - len(population)} duplicates removed, '
+                        'filling back the population')
+            new_individuals = generate_random_individuals(
+                block_array_size = (
+                    pop_size - len(population),
+                    target_img_slices.shape[0],
+                    target_img_slices.shape[1]
+                ),
+                img_database_size = len(img_database)
+            )
+            population = np.concatenate((
+                population,
+                new_individuals
+            ))
+            population, population_scores = score_and_sort_population(
+                population = population,
+                img_database = img_database,
+                target_img_repr = target_img_repr,
+                batch_size = batch_size
+            )
+
+        if generation_idx % 5 == 0:
+            save_individuals(
+                population[:3],
+                population_scores[:3],
+                img_database,
+                generation_idx,
+                output_folder
+            )
 
 
 @click.command()
@@ -197,6 +253,8 @@ def run_generation(
 @click.argument('n_reprod', type = int)
 @click.argument('n_select', type = int)
 @click.argument('n_mutation', type = int)
+@click.argument('mutation_proba', type = float)
+@click.argument('n_new_ind', type = int)
 def main(
     target_img_fn: str,
     output_folder: str,
@@ -206,7 +264,9 @@ def main(
     n_gen: int,
     n_reprod: int,
     n_select: int,
-    n_mutation: int
+    n_mutation: int,
+    mutation_proba: float,
+    n_new_ind: int
 ) -> None:
     target_img_path = Path(target_img_fn)
     output_folder_path = Path(output_folder)
@@ -219,6 +279,8 @@ def main(
     logger.info(f'Number of reproductions: {n_reprod}')
     logger.info(f'First parent selection range: {n_select}')
     logger.info(f'Number of mutated individuals: {n_mutation}')
+    logger.info(f'Mutation image change probability: {100 * mutation_proba:5.3f}%')
+    logger.info(f'Number of new random individuals at each generation: {n_new_ind}')
 
     target_img = load_target_img(
         target_img_path,
@@ -232,9 +294,11 @@ def main(
     run_generation(
         pop_size = pop_size,
         n_mutation = n_mutation,
+        mutation_proba = mutation_proba,
         n_gen = n_gen,
         n_reprod = n_reprod,
         n_select = n_select,
+        n_new_ind = n_new_ind,
         block_size = 32,
         target_img = target_img,
         img_database = img_database,
