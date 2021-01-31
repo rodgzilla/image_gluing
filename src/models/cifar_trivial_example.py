@@ -1,3 +1,4 @@
+import pdb
 import sys
 import PIL # type: ignore
 import numpy as np # type: ignore
@@ -11,7 +12,7 @@ import torchvision.datasets as datasets # type: ignore
 from utils import slice_image, glue_image # type: ignore
 
 def load_CIFAR10(data_folder = '../../data'):
-    cifar_train: dataset.CIFAR10 = datasets.CIFAR10(
+    cifar_train = datasets.CIFAR10(
         root      = data_folder,
         train     = True,
         download  = True,
@@ -76,7 +77,8 @@ def compute_pairwise_block_database_img_dist(big_img_block_rgb, cifar_mean_rgb):
     return pairwise_euc_dist
 
 def main(target_filename, block_size = 32):
-    imgs_by_cat       = load_CIFAR10()
+    pdb.set_trace()
+    imgs_by_cat       = load_CIFAR10('data')
     targ_img          = load_target_image(target_filename)
     big_img_slices    = slice_image(targ_img, block_size)
     n_block_x         = big_img_slices.shape[0]
