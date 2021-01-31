@@ -3,6 +3,7 @@ from pathlib import Path
 import PIL # type: ignore
 import numpy as np # type: ignore
 import torchvision.datasets as datasets # type: ignore
+import torchvision.transforms as transforms  # type: ignore
 import torch
 
 def load_target_img(img_path: Path, img_height: int,
@@ -12,18 +13,22 @@ def load_target_img(img_path: Path, img_height: int,
         (img_width, img_height)
     )) / 256
 
-def load_cifar_imgs(data_folder: Path) -> np.ndarray:
+def load_cifar_imgs(data_folder: Path, size: int = 32) -> np.ndarray:
+    if size == 32:
+        transform = None
+    else:
+        transform = transforms.Resize((size, size))
     cifar_train = datasets.CIFAR10(
         root      = data_folder,
         train     = True,
         download  = True,
-        transform = None
+        transform = transform
     )
     cifar_test = datasets.CIFAR10(
         root      = data_folder,
         train     = False,
         download  = True,
-        transform = None
+        transform = transform
     )
     imgs = np.stack([
         img for img, _ in cifar_train + cifar_test

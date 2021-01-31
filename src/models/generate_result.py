@@ -288,7 +288,7 @@ def main(
         target_img_width
     )
 
-    img_database = load_cifar_imgs('data')
+    img_database = load_cifar_imgs('data', 16)
     logger.info(f'Image database shape: {img_database.shape}')
 
     run_generation(
@@ -299,7 +299,7 @@ def main(
         n_reprod = n_reprod,
         n_select = n_select,
         n_new_ind = n_new_ind,
-        block_size = 32,
+        block_size = 16,
         target_img = target_img,
         img_database = img_database,
         batch_size = 1,
