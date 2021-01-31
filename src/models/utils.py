@@ -3,6 +3,7 @@ from pathlib import Path
 import PIL # type: ignore
 import numpy as np # type: ignore
 import torchvision.datasets as datasets # type: ignore
+import torch
 
 def load_target_img(img_path: Path, img_height: int,
                     img_width: int
@@ -49,19 +50,37 @@ def slice_image(img: np.ndarray, block_size: int) -> np.ndarray:
 
     return grid
 
-def glue_image(imgs_to_glue: np.ndarray) -> np.ndarray:
+def glue_images(imgs_to_glue: np.ndarray) -> np.ndarray:
     '''
     This function is the inverse of slice image, it glues many images
     together to form a big one. The input if of shape
-    `[n_block_x, n_block_y, n_pixel_block_x, n_pixel_block_y, rgb]`
+    `[n_img, n_block_x, n_block_y, n_pixel_block_x, n_pixel_block_y, rgb]`
     and the output is of shape
-    `[n_block_x * n_pixel_block_x, n_block_y * n_pixel_block_y, rgb]
+    `[n_img, n_block_x * n_pixel_block_x, n_block_y * n_pixel_block_y, rgb]
     '''
-    glued_img = imgs_to_glue.transpose((0, 2, 1, 3, 4))
+    glued_img = imgs_to_glue.transpose((0, 1, 3, 2, 4, 5))
     glued_img = glued_img.reshape(
-        glued_img.shape[0] * glued_img.shape[1],
-        glued_img.shape[2] * glued_img.shape[3],
+        glued_img.shape[0],
+        glued_img.shape[1] * glued_img.shape[2],
+        glued_img.shape[3] * glued_img.shape[4],
         3
     )
 
     return glued_img
+
+# def glue_image(imgs_to_glue: np.ndarray) -> np.ndarray:
+#     '''
+#     This function is the inverse of slice image, it glues many images
+#     together to form a big one. The input if of shape
+#     `[n_block_x, n_block_y, n_pixel_block_x, n_pixel_block_y, rgb]`
+#     and the output is of shape
+#     `[n_block_x * n_pixel_block_x, n_block_y * n_pixel_block_y, rgb]
+#     '''
+#     glued_img = imgs_to_glue.transpose((0, 2, 1, 3, 4))
+#     glued_img = glued_img.reshape(
+#         glued_img.shape[0] * glued_img.shape[1],
+#         glued_img.shape[2] * glued_img.shape[3],
+#         3
+#     )
+
+#     return glued_img

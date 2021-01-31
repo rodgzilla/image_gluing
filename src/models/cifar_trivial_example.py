@@ -9,7 +9,7 @@ from sklearn.metrics import pairwise_distances # type: ignore
 
 import torchvision.datasets as datasets # type: ignore
 
-from utils import slice_image, glue_image # type: ignore
+from utils import slice_image, glue_images # type: ignore
 
 def load_CIFAR10(data_folder = '../../data'):
     cifar_train = datasets.CIFAR10(
@@ -96,9 +96,9 @@ def main(target_filename, block_size = 32):
     )
     best_block_replacement     = pairwise_euc_dist.argmin(axis = -1)
     imgs_to_glue               = cifar_imgs[best_block_replacement]
-    glued_img                  = glue_image(imgs_to_glue)
+    glued_img                  = glue_images(imgs_to_glue[None, ...])
     plt.figure(figsize = (15, 15))
-    plt.imshow(glued_img)
+    plt.imshow(np.squeeze(glued_img))
     plt.show()
 
 if __name__ == '__main__':
