@@ -28,6 +28,25 @@ def generate_random_individuals(
         size = block_array_size
     )
 
+def save_individuals(
+    individuals: np.ndarray,
+    scores: np.ndarray,
+    img_database: np.ndarray,
+    generation_idx: int,
+    output_folder: Path
+):
+    imgs_to_glue = img_database[individuals]
+    glued_imgs = glue_images(imgs_to_glue)
+    for img_idx, (img, score) in enumerate(zip(glued_imgs, scores)):
+        pil_img = PIL.Image.fromarray(img)
+        img_fn = output_folder / f'gen_{generation_idx:04d}_img_{img_idx}_score_{score}.png'
+        pil_img.save(img_fn)
+    # plt.imshow(glued_imgs[0])
+    # plt.show()
+    # pdb.set_trace()
+
+    # print(5)
+
 def score_individuals(
     individuals: np.ndarray,
     img_database: np.ndarray,
@@ -84,7 +103,8 @@ def run_generation(
     block_size:int,
     target_img: np.ndarray,
     img_database: np.ndarray,
-    batch_size: int
+    batch_size: int,
+    output_folder: Path,
 ) -> None:
     target_img_slices = slice_image(
         img = target_img,
@@ -113,8 +133,8 @@ def run_generation(
     population_scores = population_scores[sorted_indices]
     population = population[sorted_indices]
 
-    for generation_id in tqdm(range(n_gen)):
-        logger.info(f'Start of generation {generation_id}')
+    for generation_idx in tqdm(range(n_gen)):
+        logger.info(f'Start of generation {generation_idx}')
         logger.info(f'Top scores {population_scores[:5]}')
         logger.info(f'Performing reproductions')
         reprod_parent_1 = np.random.randint(
@@ -160,18 +180,55 @@ def run_generation(
         population_scores = new_population_scores[sorted_indices]
         new_population = new_population[sorted_indices]
         population = new_population[:pop_size]
+        population_scores = population_scores[:pop_size]
+        save_individuals(
+            population[:3],
+            population_scores[:3],
+            img_database,
+            generation_idx,
+            output_folder
+        )
+#         def save_individuals(
+#     individuals: np.ndarray,
+#     scores: np.ndarray,
+#     img_database: np.ndarray,
+#     generation_idx: int,
+#     output_folder: Path
+# ):
+
 
 @click.command()
 @click.argument('target_img_fn', type = click.Path(exists = True))
+@click.argument('output_folder', type = click.Path(exists = True))
 @click.argument('target_img_height', type = int)
 @click.argument('target_img_width', type = int)
-def main(target_img_fn: str, target_img_height: int,
-         target_img_width: int
+@click.argument('pop_size', type = int)
+@click.argument('n_gen', type = int)
+@click.argument('n_reprod', type = int)
+@click.argument('n_select', type = int)
+@click.argument('n_mutation', type = int)
+def main(
+    target_img_fn: str,
+    output_folder: str,
+    target_img_height: int,
+    target_img_width: int,
+    pop_size: int,
+    n_gen: int,
+    n_reprod: int,
+    n_select: int,
+    n_mutation: int
 ) -> None:
     target_img_path = Path(target_img_fn)
+    output_folder_path = Path(output_folder)
     logger.info(f'Target image path: {target_img_path}')
     logger.info(f'Target image height: {target_img_height}')
     logger.info(f'Target image width: {target_img_width}')
+    logger.info(f'Output folder path: {output_folder_path}')
+    logger.info(f'Population size: {pop_size}')
+    logger.info(f'Number of generation: {n_gen}')
+    logger.info(f'Number of reproductions: {n_reprod}')
+    logger.info(f'First parent selection range: {n_select}')
+    logger.info(f'Number of mutated individuals: {n_mutation}')
 
     target_img = load_target_img(
         target_img_path,
@@ -183,15 +240,16 @@ def main(target_img_fn: str, target_img_height: int,
     logger.info(f'Image database shape: {img_database.shape}')
 
     run_generation(
-        pop_size = 30,
-        n_mutation = 10,
-        n_gen = 3,
-        n_reprod = 10,
-        n_select = 5,
+        pop_size = pop_size,
+        n_mutation = n_mutation,
+        n_gen = n_gen,
+        n_reprod = n_reprod,
+        n_select = n_select,
         block_size = 32,
         target_img = target_img,
         img_database = img_database,
-        batch_size = 1
+        batch_size = 1,
+        output_folder = output_folder_path
     )
 
 if __name__ == '__main__':
